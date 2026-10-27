@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Risk Predictor — Модель плинності кадрів</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<!-- SheetJS — для експорту в Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+
+  :root {
+    --bg:          #f4efe6;
+    --card:        #faf7f2;
+    --border:      #ccc3aa;
+    --border-dark: #8a7d65;
+    --navy:        #1c2a4a;
+    --navy-mid:    #2e4070;
+    --text:        #1c2a4a;
+    --muted:       #6b6050;
+    --safe:        #1a4a2e;
+    --wine:        #6b1a2a;
+    --font-d: "Cormorant Garamond", serif;
+    --font-b: "EB Garamond", serif;
+  }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:var(--font-b); font-size:17px; min-height:100vh;
+  }
+  body::after {
+    content:""; position:fixed; inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%276%27 height=%276%27%3E%3Crect width=%276%27 height=%276%27 fill=%27%23f4efe6%27/%3E%3Ccircle cx=%271%27 cy=%271%27 r=%270.6%27 fill=%27%23c8bfa8%27 opacity=%270.25%27/%3E%3C/svg%3E");
+    pointer-events:none; z-index:0;
+  }
+
+  /* ── ВСТУПНЕ ВІКНО ─────────────────────── */
+  #intro-overlay {
+    position:fixed; inset:0; background:rgba(16,12,8,0.75);
+    z-index:1000; display:flex; align-items:center; justify-content:center;
+    animation:fadeIn 0.4s ease; backdrop-filter:blur(4px);
+  }
+  #intro-modal {
+    background:#faf6ee; max-width:620px; width:92%;
+    position:relative; animation:slideUp 0.45s ease;
+    box-shadow:0 28px 90px rgba(16,12,8,0.38),0 4px 20px rgba(107,26,42,0.18);
+    border:1px solid #c0b49a;
+  }
+  #intro-modal::before, #intro-modal::after {
+    content:""; position:absolute; width:22px; height:22px;
+    border-color:var(--wine); border-style:solid; opacity:0.4;
+  }
+  #intro-modal::before { top:16px; left:16px; border-width:2px 0 0 2px; }
+  #intro-modal::after  { bottom:16px; right:16px; border-width:0 2px 2px 0; }
+  .intro-bar-top { height:6px; background:linear-gradient(90deg,var(--navy) 0%,var(--wine) 45%,var(--navy) 100%); }
+  .intro-inner { padding:42px 52px 46px; }
+  .intro-eyebrow { text-align:center; font-family:var(--font-b); font-size:11px; letter-spacing:5px; text-transform:uppercase; color:var(--wine); margin-bottom:8px; }
+  .intro-heading { text-align:center; font-family:var(--font-d); font-size:44px; font-weight:500; color:var(--navy); line-height:1.08; margin-bottom:4px; }
+  .intro-heading em { font-style:italic; color:var(--wine); }
+  .intro-sub { text-align:center; font-size:15px; font-style:italic; color:var(--muted); }
+  .orn { text-align:center; color:var(--wine); font-size:13px; letter-spacing:10px; margin:18px 0 20px; opacity:0.5; user-select:none; }
+  .hdiv { display:flex; align-items:center; gap:12px; margin:20px 0; }
+  .hdiv::before,.hdiv::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,transparent,rgba(107,26,42,0.4),transparent); }
+  .hdiv-gem { width:7px; height:7px; background:var(--wine); transform:rotate(45deg); opacity:0.5; flex-shrink:0; }
+  .intro-note { text-align:center; font-size:14px; font-style:italic; color:var(--muted); line-height:1.6; margin-bottom:24px; }
+  .intro-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .intro-row.full { grid-template-columns:1fr; }
+  .ifield label { display:block; font-size:10px; letter-spacing:3.5px; text-transform:uppercase; color:var(--navy); margin-bottom:7px; opacity:0.8; }
+  .ifield input, .ifield select {
+    width:100%; background:#f0ece2; border:none; border-bottom:2px solid #b8a88a;
+    color:var(--text); font-family:var(--font-d); font-size:20px; font-style:italic;
+    padding:9px 12px 7px; outline:none; transition:border-color 0.2s, background 0.2s;
+    border-radius:0; -webkit-appearance:none;
+  }
+  .ifield input:focus, .ifield select:focus { border-bottom-color:var(--navy); background:#fff; }
+  .ifield input::placeholder { color:#b0a68a; font-style:italic; }
+  .ifield select option { font-style:normal; font-family:sans-serif; font-size:14px; }
+  .intro-proceed {
+    width:100%; margin-top:26px; padding:15px; background:var(--navy); color:#faf6ee; border:none;
+    font-family:var(--font-d); font-size:17px; font-weight:500; letter-spacing:5px; text-transform:uppercase;
+    cursor:pointer; transition:all 0.22s; position:relative; overflow:hidden;
+  }
+  .intro-proceed::after { content:""; position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--wine); transform:scaleX(0); transition:transform 0.25s; }
+  .intro-proceed:hover { background:var(--wine); letter-spacing:7px; }
+  .intro-proceed:hover::after { transform:scaleX(1); }
+  .intro-credit { text-align:center; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#b8a88a; margin-top:14px; }
+  .intro-bar-bot { height:4px; background:linear-gradient(90deg,var(--wine),var(--navy),var(--wine)); opacity:0.5; }
+
+  /* ── ОСНОВНИЙ КОНТЕНТ ──────────────────── */
+  .container { max-width:100%; margin:0; padding:52px 64px 100px; position:relative; z-index:1; }
+  header { text-align:center; border-bottom:1px solid var(--border-dark); padding-bottom:32px; margin-bottom:44px; }
+  .tag { font-size:12px; letter-spacing:4px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:14px; }
+  h1 { font-family:var(--font-d); font-size:clamp(40px,5vw,72px); font-weight:500; line-height:1.1; color:var(--navy); letter-spacing:0.02em; margin-bottom:8px; }
+  h1 span { font-style:italic; }
+  .subtitle { font-size:20px; font-style:italic; color:var(--muted); }
+  #session-badge { display:none; margin-top:14px; font-size:13px; font-style:italic; color:var(--muted); }
+  #session-badge .sname { color:var(--wine); font-style:normal; }
+  #session-badge .scountry { display:inline-block; background:var(--wine); color:#faf6ee; font-size:10px; font-style:normal; letter-spacing:2px; text-transform:uppercase; padding:2px 8px; margin-left:6px; vertical-align:middle; }
+
+  .section { margin-bottom:40px; }
+  .section-label { font-family:var(--font-d); font-size:18px; letter-spacing:4px; text-transform:uppercase; color:var(--navy); font-weight:500; margin-bottom:18px; display:flex; align-items:center; gap:16px; }
+  .section-label::after { content:""; flex:1; height:1px; background:var(--border-dark); }
+  .fields-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+  .field { background:var(--card); border:1px solid var(--border); padding:20px 22px; transition:border-color 0.2s,box-shadow 0.2s; }
+  .field:hover { border-color:var(--border-dark); box-shadow:0 3px 16px rgba(28,42,74,0.08); }
+  .field-label { font-size:18px; color:var(--text); margin-bottom:10px; }
+  .field-hint { font-size:13px; color:var(--muted); font-style:italic; margin-bottom:8px; }
+  .field-optional { font-size:12px; color:var(--muted); font-style:italic; margin-bottom:8px; letter-spacing:0.5px; }
+  .field input[type="number"], .field input[type="text"], .field select {
+    width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    font-family:var(--font-b); font-size:19px; padding:10px 14px; outline:none;
+    transition:border-color 0.2s; -webkit-appearance:none; border-radius:0;
+  }
+  .field input:focus, .field select:focus { border-color:var(--navy); }
+  .field select option { background:var(--card); font-family:sans-serif; font-size:14px; }
+  .field input::placeholder { color:#b0a68a; font-style:italic; }
+
+  .toggle-group { display:flex; gap:8px; }
+  .toggle-btn { flex:1; padding:11px; background:var(--bg); border:1px solid var(--border); color:var(--muted); font-family:var(--font-b); font-size:17px; cursor:pointer; transition:all 0.15s; text-align:center; border-radius:0; }
+  .toggle-btn.active-yes, .toggle-btn.active-no { background:var(--navy); border-color:var(--navy); color:#faf6ee; }
+
+  .action-row { display:flex; gap:14px; margin-top:36px; }
+  .calc-btn { flex:1; padding:22px; background:var(--navy); color:#faf6ee; border:none; font-family:var(--font-d); font-size:24px; font-weight:500; letter-spacing:4px; text-transform:uppercase; cursor:pointer; transition:all 0.22s; position:relative; overflow:hidden; }
+  .calc-btn::after { content:""; position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--wine); transform:scaleX(0); transition:transform 0.3s; }
+  .calc-btn:hover { background:var(--navy-mid); transform:translateY(-1px); box-shadow:0 10px 36px rgba(28,42,74,0.22); }
+  .calc-btn:hover::after { transform:scaleX(1); }
+  .calc-btn:active { transform:none; }
+  .export-btn { padding:22px 32px; background:transparent; border:1px solid var(--wine); color:var(--wine); font-family:var(--font-d); font-size:18px; font-weight:500; letter-spacing:3px; text-transform:uppercase; cursor:pointer; transition:all 0.22s; white-space:nowrap; }
+  .export-btn:hover { background:rgba(107,26,42,0.07); transform:translateY(-1px); }
+  .export-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none; }
+
+  /* results */
+  #results { margin-top:52px; display:none; animation:slideUp 0.4s ease; }
+  .result-main { background:var(--card); border:1px solid var(--border-dark); padding:44px 36px; text-align:center; margin-bottom:28px; position:relative; overflow:hidden; }
+  .result-main::before { content:""; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,var(--navy),var(--wine),var(--navy)); }
+  .prob-label { font-size:13px; letter-spacing:4px; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+  .prob-value { font-family:var(--font-d); font-size:110px; font-weight:500; line-height:1; margin-bottom:12px; transition:color 0.5s; color:var(--navy); }
+  .prob-verdict { font-size:22px; font-style:italic; margin-bottom:28px; }
+  .gauge-track { width:100%; height:5px; background:var(--border); margin-bottom:10px; }
+  .gauge-fill { height:100%; transition:width 0.9s cubic-bezier(0.23,1,0.32,1); }
+  .gauge-labels { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); font-style:italic; }
+  .breakdown-title { font-family:var(--font-d); font-size:17px; letter-spacing:4px; text-transform:uppercase; color:var(--navy); font-weight:500; margin-bottom:18px; display:flex; align-items:center; gap:16px; }
+  .breakdown-title::after { content:""; flex:1; height:1px; background:var(--border-dark); }
+  .factor-row { background:var(--card); border:1px solid var(--border); padding:18px 22px; margin-bottom:10px; display:grid; grid-template-columns:1fr auto; align-items:center; gap:14px; animation:slideRight 0.3s ease both; transition:border-color 0.2s; }
+  .factor-row:hover { border-color:var(--border-dark); }
+  .factor-name { font-size:21px; color:var(--text); margin-bottom:5px; }
+  .factor-desc { font-size:15px; color:var(--muted); font-style:italic; }
+  .factor-impact { font-family:var(--font-d); font-size:32px; font-weight:500; white-space:nowrap; text-align:right; line-height:1.2; }
+  .factor-bar-row { height:2px; margin-top:10px; background:var(--border); width:100%; grid-column:1/-1; }
+  .factor-bar-fill { height:100%; transition:width 0.6s ease; }
+  .impact-positive { color:var(--wine); }
+  .impact-negative { color:var(--safe); }
+  .impact-neutral  { color:var(--muted); }
+  .bar-positive { background:var(--wine); }
+  .bar-negative { background:var(--safe); }
+  .legend { display:flex; gap:28px; margin-top:22px; font-size:15px; color:var(--muted); justify-content:center; font-style:italic; }
+  .legend-item { display:flex; align-items:center; gap:10px; }
+  .legend-dot { width:10px; height:10px; border-radius:50%; }
+
+/* ── ВКЛАДКИ МОДУЛІВ ──────────────────── */
+.module-tabs {
+  display:flex; gap:0; margin-bottom:40px;
+  border-bottom:2px solid var(--border-dark);
+}
+.tab-btn {
+  padding:14px 32px; background:transparent;
+  border:none; border-bottom:3px solid transparent;
+  font-family:var(--font-d); font-size:18px; font-weight:500;
+  letter-spacing:2px; color:var(--muted);
+  cursor:pointer; transition:all 0.2s;
+  margin-bottom:-2px;
+}
+.tab-btn:hover { color:var(--navy); }
+.tab-btn.active {
+  color:var(--navy); border-bottom-color:var(--wine);
+}
+.tab-badge {
+  display:inline-block; font-size:11px;
+  background:var(--wine); color:#faf6ee;
+  padding:1px 6px; margin-left:6px;
+  vertical-align:middle; letter-spacing:1px;
+}
+.module-panel { display:none; }
+.module-panel.active { display:block; }
+
+  @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+  @keyframes slideUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes slideRight { from{opacity:0;transform:translateX(-12px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes fadeOut { from{opacity:1} to{opacity:0;pointer-events:none} }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border-dark); }
+</style>
+</head>
+<body>
+
+<!-- ══ ВСТУПНЕ ВІКНО ══════════════════════════════════════ -->
+<div id="intro-overlay">
+  <div id="intro-modal">
+    <div class="intro-bar-top"></div>
+    <div class="intro-inner">
+      <div class="intro-eyebrow">HR Risk Assessment · Economic Cybernetics</div>
+      <div class="intro-heading">Модель плинності <em>кадрів</em></div>
+      <div class="intro-sub">Прогнозування ймовірності звільнення · логістична регресія</div>
+      <div class="orn">· · ✦ · ·</div>
+      <div class="intro-note">Вкажіть дані сесії перед початком оцінювання.<br>Їх буде збережено у звіті.</div>
+
+      <div class="intro-row">
+        <div class="ifield">
+          <label>Ім'я кандидата</label>
+          <input type="text" id="intro-candidate" placeholder="Прізвище Ім'я" autocomplete="off">
+        </div>
+        <div class="ifield">
+          <label>Ім'я менеджера</label>
+          <input type="text" id="intro-manager" placeholder="Прізвище Ім'я" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="intro-row full">
+        <div class="ifield">
+          <label>Країна оцінювання</label>
+          <select id="intro-country">
+            <option value="UA" data-avg="30000"   data-curr="грн" selected>🇺🇦 Україна</option>
+            <option value="US" data-avg="5800"    data-curr="$"         >🇺🇸 США</option>
+            <option value="GB" data-avg="3500"    data-curr="£"         >🇬🇧 Велика Британія</option>
+            <option value="DE" data-avg="4900"    data-curr="€"         >🇩🇪 Німеччина</option>
+            <option value="FR" data-avg="3600"    data-curr="€"         >🇫🇷 Франція</option>
+            <option value="IT" data-avg="2800"    data-curr="€"         >🇮🇹 Італія</option>
+            <option value="ES" data-avg="2100"    data-curr="€"         >🇪🇸 Іспанія</option>
+            <option value="NL" data-avg="4800"    data-curr="€"         >🇳🇱 Нідерланди</option>
+            <option value="SE" data-avg="42000"   data-curr="kr"        >🇸🇪 Швеція</option>
+            <option value="NO" data-avg="62000"   data-curr="kr"        >🇳🇴 Норвегія</option>
+            <option value="DK" data-avg="48000"   data-curr="kr"        >🇩🇰 Данія</option>
+            <option value="FI" data-avg="4300"    data-curr="€"         >🇫🇮 Фінляндія</option>
+            <option value="CH" data-avg="7200"    data-curr="CHF"       >🇨🇭 Швейцарія</option>
+            <option value="AT" data-avg="4000"    data-curr="€"         >🇦🇹 Австрія</option>
+            <option value="BE" data-avg="4000"    data-curr="€"         >🇧🇪 Бельгія</option>
+            <option value="PL" data-avg="9500"    data-curr="zł"        >🇵🇱 Польща</option>
+            <option value="CZ" data-avg="52000"   data-curr="Kč"        >🇨🇿 Чехія</option>
+            <option value="HU" data-avg="772000"  data-curr="Ft"        >🇭🇺 Угорщина</option>
+            <option value="RO" data-avg="5900"    data-curr="lei"       >🇷🇴 Румунія</option>
+            <option value="BG" data-avg="1700"    data-curr="лв"        >🇧🇬 Болгарія</option>
+            <option value="HR" data-avg="1600"    data-curr="€"         >🇭🇷 Хорватія</option>
+            <option value="SK" data-avg="1600"    data-curr="€"         >🇸🇰 Словаччина</option>
+            <option value="SI" data-avg="2300"    data-curr="€"         >🇸🇮 Словенія</option>
+            <option value="PT" data-avg="1800"    data-curr="€"         >🇵🇹 Португалія</option>
+            <option value="GR" data-avg="2100"    data-curr="€"         >🇬🇷 Греція</option>
+            <option value="TR" data-avg="35000"   data-curr="₺"         >🇹🇷 Туреччина</option>
+            <option value="IL" data-avg="15000"   data-curr="₪"         >🇮🇱 Ізраїль</option>
+            <option value="AE" data-avg="18000"   data-curr="AED"       >🇦🇪 ОАЕ</option>
+            <option value="SA" data-avg="11200"   data-curr="SAR"       >🇸🇦 Саудівська Аравія</option>
+            <option value="SG" data-avg="6000"    data-curr="SGD"       >🇸🇬 Сінгапур</option>
+            <option value="JP" data-avg="350000"  data-curr="¥"         >🇯🇵 Японія</option>
+            <option value="KR" data-avg="4500000" data-curr="₩"         >🇰🇷 Південна Корея</option>
+            <option value="CN" data-avg="10500"   data-curr="¥"         >🇨🇳 Китай</option>
+            <option value="IN" data-avg="28000"   data-curr="₹"         >🇮🇳 Індія</option>
+            <option value="AU" data-avg="8000"    data-curr="AUD"       >🇦🇺 Австралія</option>
+            <option value="NZ" data-avg="4500"    data-curr="NZD"       >🇳🇿 Нова Зеландія</option>
+            <option value="CA" data-avg="5800"    data-curr="CAD"       >🇨🇦 Канада</option>
+            <option value="MX" data-avg="16000"   data-curr="MXN"       >🇲🇽 Мексика</option>
+            <option value="BR" data-avg="3500"    data-curr="R$"        >🇧🇷 Бразилія</option>
+            <option value="AR" data-avg="1200000" data-curr="ARS"       >🇦🇷 Аргентина</option>
+            <option value="CL" data-avg="1000000" data-curr="CLP"       >🇨🇱 Чилі</option>
+            <option value="CO" data-avg="2500000" data-curr="COP"       >🇨🇴 Колумбія</option>
+            <option value="ZA" data-avg="28000"   data-curr="ZAR"       >🇿🇦 ПАР</option>
+            <option value="NG" data-avg="100000"  data-curr="₦"         >🇳🇬 Нігерія</option>
+            <option value="EG" data-avg="12000"   data-curr="EGP"       >🇪🇬 Єгипет</option>
+            <option value="KZ" data-avg="480000"  data-curr="₸"         >🇰🇿 Казахстан</option>
+            <option value="GE" data-avg="2200"    data-curr="₾"         >🇬🇪 Грузія</option>
+            <option value="AZ" data-avg="1100"    data-curr="₼"         >🇦🇿 Азербайджан</option>
+            <option value="RS" data-avg="116000"  data-curr="RSD"       >🇷🇸 Сербія</option>
+            <option value="MD" data-avg="16800"   data-curr="MDL"       >🇲🇩 Молдова</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="hdiv"><div class="hdiv-gem"></div></div>
+      <button class="intro-proceed" onclick="startSession()">Почати оцінювання</button>
+      <div class="intro-credit">КНУ імені Тараса Шевченка · Економічна кібернетика · 2026</div>
+    </div>
+    <div class="intro-bar-bot"></div>
+  </div>
+</div>
+
+<!-- ══ ОСНОВНИЙ ЗАСТОСУНОК ════════════════════════════════ -->
+<div class="container">
+  <header>
+    <span class="tag">Економічна кібернетика · Богдан Маргарита · КНУ імені Тараса Шевченка</span>
+    <h1>Модель плинності <span>кадрів</span></h1>
+    <p class="subtitle">Бінарний вибір методом логістичної регресії</p>
+    <div id="session-badge">
+      Кандидат: <span class="sname" id="disp-candidate">—</span>
+      &nbsp;·&nbsp;
+      Менеджер: <span class="sname" id="disp-manager">—</span>
+      <span class="scountry" id="disp-country">UA</span>
+    </div>
+  </header>
+
+<div class="module-tabs">
+  <button class="tab-btn active" onclick="switchModule('pre')">
+    👤 Кандидат <span class="tab-badge">PRE-HIRE</span>
+  </button>
+  <button class="tab-btn" onclick="switchModule('post')">
+    🏢 Співробітник <span class="tab-badge">POST-HIRE</span>
+  </button>
+</div>
+
+  <!-- КІЛЬКІСНІ ФАКТОРИ -->
+  <!-- ══ МОДУЛЬ 1: PRE-HIRE ══ -->
+<div id="panel-pre" class="module-panel active">
+
+  <div class="section">
+    <div class="section-label">Характеристики кандидата</div>
+    <div class="fields-grid">
+
+      <div class="field">
+        <div class="field-label">Індекс розвитку міста</div>
+        <div class="field-hint">Від 0.40 (мале місто) до 1.00 (мегаполіс)</div>
+        <input type="number" id="p1-city" min="0.40" max="1.00" step="0.01" value="0.90">
+      </div>
+
+      <div class="field">
+        <div class="field-label">Загальний стаж роботи (років)</div>
+        <input type="number" id="p1-exp" min="0" max="21" value="5">
+      </div>
+
+      <div class="field">
+        <div class="field-label">Години навчання / тренінгів</div>
+        <div class="field-hint">Загальна к-сть годин пройдених курсів</div>
+        <input type="number" id="p1-training" min="0" max="1000" value="50">
+      </div>
+
+      <div class="field">
+        <div class="field-label">Років тому змінював/ла роботу</div>
+        <div class="field-hint">0 = ніколи не змінював/ла</div>
+        <input type="number" id="p1-lastjob" min="0" max="5" value="1">
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Досвід</div>
+    <div class="fields-grid">
+      <div class="field">
+        <div class="field-label">Релевантний досвід у сфері</div>
+        <div class="toggle-group">
+          <button class="toggle-btn active-no" onclick="setToggle('p1-relexp','yes',this)">Так</button>
+          <button class="toggle-btn"           onclick="setToggle('p1-relexp','no',this)">Ні</button>
+        </div>
+        <input type="hidden" id="p1-relexp" value="yes">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Додаткові дані для звіту</div>
+    <div class="fields-grid">
+      <div class="field">
+        <div class="field-label">Результат тесту знань (%)</div>
+        <div class="field-optional">Не враховується в моделі · тільки для звіту</div>
+        <input type="number" id="p1-test" min="0" max="100" placeholder="Залиште порожнім якщо тест не проводився">
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ МОДУЛЬ 2: POST-HIRE ══ -->
+<div id="panel-post" class="module-panel">
+
+  <div class="section">
+    <div class="section-label">Кількісні фактори</div>
+    <div class="fields-grid">
+
+      <div class="field">
+        <div class="field-label">Вік (років)</div>
+        <input type="number" id="p2-age" min="18" max="60" value="32">
+      </div>
+
+      <div class="field">
+        <div class="field-label">К-сть попередніх місць роботи</div>
+        <input type="number" id="p2-numcompanies" min="0" max="20" value="3">
+      </div>
+
+      <div class="field">
+        <div class="field-label">Відстань до роботи (км)</div>
+        <input type="number" id="p2-distance" min="0" max="100" value="10">
+      </div>
+
+      <div class="field">
+        <div class="field-label">Місячний дохід <span id="curr-label" style="font-size:14px;color:var(--muted);font-style:italic">(грн)</span></div>
+        <div class="field-hint">У місцевій валюті — модель нормалізує автоматично</div>
+        <input type="number" id="p2-income" min="0" max="99999999" step="500" value="30000">
+      </div>
+
+      <div class="field">
+        <div class="field-label">Задоволеність роботою (1–4)</div>
+        <select id="p2-jobsat">
+          <option value="1">1 — Незадоволений/а</option>
+          <option value="2" selected>2 — Нейтральний/а</option>
+          <option value="3">3 — Задоволений/а</option>
+          <option value="4">4 — Дуже задоволений/а</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Атмосфера в колективі (1–4)</div>
+        <select id="p2-envsat">
+          <option value="1">1 — Дуже погана</option>
+          <option value="2" selected>2 — Нейтральна</option>
+          <option value="3">3 — Хороша</option>
+          <option value="4">4 — Відмінна</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Баланс робота / життя (1–4)</div>
+        <select id="p2-wlb">
+          <option value="1">1 — Дуже поганий</option>
+          <option value="2" selected>2 — Нейтральний</option>
+          <option value="3">3 — Хороший</option>
+          <option value="4">4 — Відмінний</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Років без підвищення</div>
+        <div class="field-hint">Скільки років тому було останнє підвищення</div>
+        <input type="number" id="p2-promotion" min="0" max="20" value="2">
+      </div>
+
+      <div class="field">
+        <div class="field-label">Стаж з поточним керівником (років)</div>
+        <input type="number" id="p2-manager" min="0" max="20" value="3">
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Категоріальні фактори</div>
+    <div class="fields-grid">
+
+      <div class="field">
+        <div class="field-label">Сімейний стан</div>
+        <div class="toggle-group">
+          <button class="toggle-btn active-no" onclick="setToggle('p2-marital','yes',this)">Одружений/а</button>
+          <button class="toggle-btn"           onclick="setToggle('p2-marital','no',this)">Не одружений/а</button>
+        </div>
+        <input type="hidden" id="p2-marital" value="yes">
+      </div>
+
+      <div class="field">
+        <div class="field-label">Понаднормова робота</div>
+        <div class="toggle-group">
+          <button class="toggle-btn"           onclick="setToggle('p2-overtime','yes',this)">Так</button>
+          <button class="toggle-btn active-no" onclick="setToggle('p2-overtime','no',this)">Ні</button>
+        </div>
+        <input type="hidden" id="p2-overtime" value="no">
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Додаткові дані для звіту</div>
+    <div class="fields-grid">
+      <div class="field">
+        <div class="field-label">Результат тесту знань (%)</div>
+        <div class="field-optional">Не враховується в моделі · тільки для звіту</div>
+        <input type="number" id="p2-test" min="0" max="100" placeholder="Залиште порожнім якщо тест не проводився">
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="action-row">
+  <button class="calc-btn" onclick="calculate()">ОБЧИСЛИТИ ЙМОВІРНІСТЬ</button>
+  <button class="export-btn" id="add-btn" onclick="addCandidate()" disabled title="Спочатку обчисліть ймовірність">+ Додати кандидата</button>
+  <button class="export-btn" id="export-btn" onclick="exportToExcel()" disabled title="Спочатку обчисліть ймовірність">↓ Export</button>
+</div>
+
+  <!-- РЕЗУЛЬТАТИ -->
+  <div id="results">
+    <div class="result-main">
+      <div class="prob-label">Ймовірність звільнення P(Y = 1)</div>
+      <div class="prob-value" id="prob-display">—</div>
+      <div class="prob-verdict" id="verdict-text"></div>
+      <div class="gauge-track">
+        <div class="gauge-fill" id="gauge-fill" style="width:0%"></div>
+      </div>
+      <div class="gauge-labels">
+        <span>0% — стабільний</span>
+        <span>100% — високий ризик</span>
+      </div>
+    </div>
+    <div class="breakdown-title">Вплив кожного фактора</div>
+    <div id="factors-list"></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--wine)"></div> Підвищує ризик</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--safe)"></div> Знижує ризик</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Середня зп США (база датасету IBM HR Analytics) ──────
+const USA_AVG = 5800;
+
+function getCountryData() {
+  const sel = document.getElementById("intro-country");
+  const opt = sel.options[sel.selectedIndex];
+  return {
+    avg:  parseFloat(opt.getAttribute("data-avg")) || USA_AVG,
+    curr: opt.getAttribute("data-curr") || "$",
+    name: opt.textContent.replace(/^.{1,4}\s/,"").trim()
+  };
+}
+
+function normalizeIncome(raw) {
+  const { avg } = getCountryData();
+  return (raw / avg) * USA_AVG;
+}
+
+// ── Сесія ─────────────────────────────────────────────────
+window.session    = {};
+window.lastResult = null;
+
+function startSession() {
+  const c   = document.getElementById("intro-candidate").value.trim();
+  const m   = document.getElementById("intro-manager").value.trim();
+  const sel = document.getElementById("intro-country");
+
+  [["intro-candidate",c],["intro-manager",m]].forEach(([id,val])=>{
+    const el = document.getElementById(id);
+    if (!val) {
+      el.style.borderBottomColor="var(--wine)";
+      el.style.background="rgba(107,26,42,0.06)";
+      setTimeout(()=>{ el.style.borderBottomColor=""; el.style.background=""; },700);
+    }
+  });
+  if (!c || !m) return;
+
+  const { curr } = getCountryData();
+  window.session = { candidate:c, manager:m, country:sel.value, curr };
+
+  document.getElementById("disp-candidate").textContent = c;
+  document.getElementById("disp-manager").textContent   = m;
+  document.getElementById("disp-country").textContent   = sel.value;
+  document.getElementById("session-badge").style.display = "block";
+  document.getElementById("curr-label").textContent = `(${curr})`;
+
+  const overlay = document.getElementById("intro-overlay");
+  overlay.style.animation = "fadeOut 0.35s ease forwards";
+  setTimeout(()=>overlay.style.display="none", 380);
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  ["intro-candidate","intro-manager"].forEach(id=>{
+    document.getElementById(id).addEventListener("keydown", e=>{
+      if (e.key==="Enter") startSession();
+    });
+  });
+});
+
+// ── АКТИВНИЙ МОДУЛЬ ──────────────────────────────────────
+let activeModule = 'pre'; // 'pre' або 'post'
+
+function switchModule(m) {
+  activeModule = m;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active', (m==='pre'&&i===0)||(m==='post'&&i===1));
+  });
+  document.getElementById('panel-pre').classList.toggle('active', m==='pre');
+  document.getElementById('panel-post').classList.toggle('active', m==='post');
+  
+  document.getElementById('results').style.display='none';
+  window.lastResult=null;
+  document.getElementById('export-btn').disabled=true;
+  document.getElementById('add-btn').disabled=true;
+}
+
+// ── КОЕФІЦІЄНТИ — МОДУЛЬ 1 (Pre-Hire, aug_train) ─────────
+const BETAS_PRE = {
+  intercept:       3.9715,
+  cityDevelopment:-5.5940,
+  hasRelExp:      -0.5319,
+  experience:     -0.0216,
+  trainingHours:  -0.0009,
+  lastJobChange:   0.0416,
+};
+
+// ── КОЕФІЦІЄНТИ — МОДУЛЬ 2 (Post-Hire, IBM) ──────────────
+const BETAS_POST = {
+  intercept:           2.4165,
+  age:                -0.0488,
+  numCompanies:        0.1215,
+  distance:            0.0302,
+  income:             -0.1065,
+  jobSatisfaction:    -0.3227,
+  envSatisfaction:    -0.3744,
+  workLifeBalance:    -0.2552,
+  yearsSincePromotion: 0.1493,
+  yearsWithManager:   -0.1518,
+  marital:            -0.5088,
+  overTime:            1.5571,
+};
+
+// ── МЕТАДАНІ ФАКТОРІВ — МОДУЛЬ 1 ─────────────────────────
+const FACTOR_META_PRE = [
+  { key:"intercept",     label:"Базовий рівень (β₀)", getVal:()=>1, getDesc:()=>"Константа моделі" },
+  { key:"cityDevelopment", label:"Індекс розвитку міста",
+    getVal:()=>+document.getElementById("p1-city").value,
+    getDesc:v=>`CDI = ${v} — ${v>=0.9?"мегаполіс":v>=0.7?"велике місто":"мале місто"}` },
+  { key:"hasRelExp",     label:"Релевантний досвід",
+    getVal:()=>document.getElementById("p1-relexp").value==="yes"?1:0,
+    getDesc:v=>v?"Є релевантний досвід":"Немає релевантного досвіду" },
+  { key:"experience",    label:"Загальний стаж",
+    getVal:()=>+document.getElementById("p1-exp").value,
+    getDesc:v=>`${v} р. загального стажу` },
+  { key:"trainingHours", label:"Години навчання",
+    getVal:()=>+document.getElementById("p1-training").value,
+    getDesc:v=>`${v} год. тренінгів` },
+  { key:"lastJobChange", label:"Років тому змінював роботу",
+    getVal:()=>+document.getElementById("p1-lastjob").value,
+    getDesc:v=>v===0?"Ніколи не змінював/ла роботу":`${v} р. тому` },
+];
+
+// ── МЕТАДАНІ ФАКТОРІВ — МОДУЛЬ 2 ─────────────────────────
+const FACTOR_META_POST = [
+  { key:"intercept",          label:"Базовий рівень (β₀)", getVal:()=>1, getDesc:()=>"Константа моделі" },
+  { key:"age",                label:"Вік",
+    getVal:()=>+document.getElementById("p2-age").value,
+    getDesc:()=>{ const a=+document.getElementById("p2-age").value; if(a<25)return a+"р."; if(a<35)return a+"р. — молодий"; if(a<50)return a+"р. — досвідчений"; return a+"р. — зрілий"; } },
+  { key:"numCompanies",       label:"К-сть місць роботи",
+    getVal:()=>+document.getElementById("p2-numcompanies").value,
+    getDesc:v=>`${v} місць роботи` },
+  { key:"distance",           label:"Відстань до роботи",
+    getVal:()=>+document.getElementById("p2-distance").value,
+    getDesc:v=>`${v} км` },
+  { key:"income",             label:"Місячний дохід",
+    getVal:()=>normalizeIncome(+document.getElementById("p2-income").value)/1000,
+    getDesc:()=>{
+      const raw=+document.getElementById("p2-income").value;
+      const {curr,avg}=getCountryData();
+      const ratio=Math.round(raw/avg*100);
+      return `${raw.toLocaleString()} ${curr} (${ratio}% від середньої)`;
+    }},
+  { key:"jobSatisfaction",    label:"Задоволеність роботою",
+    getVal:()=>+document.getElementById("p2-jobsat").value,
+    getDesc:v=>({1:"Незадоволений/а",2:"Нейтральний/а",3:"Задоволений/а",4:"Дуже задоволений/а"})[v] },
+  { key:"envSatisfaction",    label:"Атмосфера в колективі",
+    getVal:()=>+document.getElementById("p2-envsat").value,
+    getDesc:v=>({1:"Дуже погана",2:"Нейтральна",3:"Хороша",4:"Відмінна"})[v] },
+  { key:"workLifeBalance",    label:"Баланс робота/життя",
+    getVal:()=>+document.getElementById("p2-wlb").value,
+    getDesc:v=>({1:"Дуже поганий",2:"Нейтральний",3:"Хороший",4:"Відмінний"})[v] },
+  { key:"yearsSincePromotion",label:"Років без підвищення",
+    getVal:()=>+document.getElementById("p2-promotion").value,
+    getDesc:v=>`${v} р. без підвищення` },
+  { key:"yearsWithManager",   label:"Стаж з керівником",
+    getVal:()=>+document.getElementById("p2-manager").value,
+    getDesc:v=>`${v} р. з поточним менеджером` },
+  { key:"marital",            label:"Сімейний стан",
+    getVal:()=>document.getElementById("p2-marital").value==="yes"?1:0,
+    getDesc:v=>v?"Одружений/а":"Не одружений/а" },
+  { key:"overTime",           label:"Понаднормова робота",
+    getVal:()=>document.getElementById("p2-overtime").value==="yes"?1:0,
+    getDesc:v=>v?"Є понаднормові":"Стандартний графік" },
+];
+
+function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+
+function setToggle(field,val,btn){
+  document.getElementById(field).value=val;
+  btn.parentElement.querySelectorAll(".toggle-btn")
+    .forEach(b=>b.classList.remove("active-yes","active-no"));
+  btn.classList.add(val==="yes"?"active-yes":"active-no");
+}
+
+function calculate(){
+  const BETAS       = activeModule==='pre' ? BETAS_PRE       : BETAS_POST;
+  const FACTOR_META = activeModule==='pre' ? FACTOR_META_PRE : FACTOR_META_POST;
+  const vals={}, contributions={};
+  let z=0;
+  FACTOR_META.forEach(f=>{
+    vals[f.key]=f.getVal();
+    contributions[f.key]=BETAS[f.key]*vals[f.key];
+    z+=contributions[f.key];
+  });
+
+  const P=sigmoid(z), pct=Math.round(P*100);
+  const results=document.getElementById("results");
+  results.style.display="block";
+  setTimeout(()=>results.scrollIntoView({behavior:"smooth",block:"start"}),50);
+
+  let color,verdict,verdictShort;
+  if(P<0.30){ color="#1a4a2e"; verdict="✓ Низький ризик — оцінюваний стабільний"; verdictShort="Низький"; }
+  else if(P<0.55){ color="#5a4010"; verdict="⚠ Середній ризик — варто уточнити деталі"; verdictShort="Середній"; }
+  else{ color="#6b1a2a"; verdict="✗ Високий ризик — ймовірне швидке звільнення"; verdictShort="Високий"; }
+
+  document.getElementById("prob-display").textContent=pct+"%";
+  document.getElementById("prob-display").style.color=color;
+  document.getElementById("verdict-text").textContent=verdict;
+  document.getElementById("verdict-text").style.color=color;
+
+  const gauge=document.getElementById("gauge-fill");
+  gauge.style.width=pct+"%";
+  gauge.style.background=`linear-gradient(90deg,#1a4a2e,${color})`;
+
+  // Зберігаємо для Export з вказівкою активного модуля
+  window.lastResult = {
+    module: activeModule,
+    pct, verdictShort, z,
+    vals, contributions,
+    timestamp: new Date()
+  };
+  document.getElementById("export-btn").disabled = false;
+  document.getElementById("add-btn").disabled = false;
+
+  const sorted=FACTOR_META.filter(f=>f.key!=="intercept")
+    .map(f=>({...f,val:vals[f.key],contrib:contributions[f.key]}))
+    .sort((a,b)=>Math.abs(b.contrib)-Math.abs(a.contrib));
+  const maxAbs=Math.max(...sorted.map(f=>Math.abs(f.contrib)),0.01);
+
+  const list=document.getElementById("factors-list");
+  list.innerHTML="";
+  sorted.forEach((f,i)=>{
+    const isRisk=f.contrib>0.001, isNeutral=Math.abs(f.contrib)<0.001;
+    const impCls=isNeutral?"impact-neutral":(isRisk?"impact-positive":"impact-negative");
+    const barCls=isRisk?"bar-positive":"bar-negative";
+    const sign=f.contrib>0?"+":"";
+    const barPct=Math.round(Math.abs(f.contrib)/maxAbs*100);
+    const arrow=isNeutral?"→":(isRisk?"↑ ризик":"↓ ризик");
+    const betaStr=(BETAS[f.key]>=0?"+":"")+BETAS[f.key];
+    const row=document.createElement("div");
+    row.className="factor-row";
+    row.style.animationDelay=(i*0.05)+"s";
+    row.innerHTML=`
+      <div>
+        <div class="factor-name">${f.label}</div>
+        <div class="factor-desc">${f.getDesc(f.val)} · β = ${betaStr} · x = ${Number(f.val).toFixed(2)}</div>
+        <div class="factor-bar-row"><div class="factor-bar-fill ${barCls}" style="width:${barPct}%"></div></div>
+      </div>
+      <div class="factor-impact ${impCls}">${sign}${f.contrib.toFixed(3)}<br>
+        <span style="font-size:16px;font-weight:400">${arrow}</span>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+// ── СПИСОК КАНДИДАТІВ + EXPORT в Excel ───────────────────
+const EXPORT_KEY = "hr_export_rows";
+window.currentRowId = null;
+
+function todayStr() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return `${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()}`;
+}
+
+function loadExportRows() {
+  let rows = window._exportRows;
+  if (!rows) {
+    try { rows = JSON.parse(localStorage.getItem(EXPORT_KEY) || "[]"); } catch(e) { rows = []; }
+  }
+  rows = rows.filter(x => x.date === todayStr());
+  window._exportRows = rows;
+  return rows;
+}
+
+function saveExportRows(rows) {
+  window._exportRows = rows;
+  try { localStorage.setItem(EXPORT_KEY, JSON.stringify(rows)); } catch(e) {}
+}
+
+function updateAddCounter() {
+  const n = loadExportRows().length;
+  document.getElementById("add-btn").textContent = n ? `+ Додати запис (${n})` : "+ Додати запис";
+  if (n) document.getElementById("export-btn").disabled = false;
+}
+
+// Записує поточну оцінку в список для Excel
+function commitCurrent() {
+  const r = window.lastResult;
+  if (!r) return;
+  const s = window.session;
+  const { curr, name: countryName } = getCountryData();
+  const getVal = id => {
+    const el = document.getElementById(id);
+    return el ? el.value : "";
+  };
+  
+  const isPre = r.module === 'pre';
+  const testId  = isPre ? "p1-test" : "p2-test";
+  const testVal = getVal(testId).trim();
+  const rows = loadExportRows();
+
+  const id = window.currentRowId ?? r.timestamp.getTime();
+  const row = {
+    id,
+    date: todayStr(),
+    module: isPre ? "Pre-Hire (Кандидат)" : "Post-Hire (Співробітник)",
+    candidate: s.candidate,
+    manager: s.manager,
+    country: countryName || s.country,
+    p: r.pct / 100,
+    risk: r.verdictShort,
+    test: testVal !== "" ? testVal + "%" : "Тест не проводився",
+    details: isPre 
+      ? `CDI: ${getVal("p1-city")}, Стаж: ${getVal("p1-exp")}р, Курси: ${getVal("p1-training")}г, Зміна роботи: ${getVal("p1-lastjob")}р тому`
+      : `Вік: ${getVal("p2-age")}, ЗП: ${Number(getVal("p2-income")).toLocaleString("uk-UA")} ${curr}, Відстань: ${getVal("p2-distance")}км, Понаднормові: ${getVal("p2-overtime")==="yes"?"Так":"Ні"}`
+  };
+  
+  const idx = rows.findIndex(x => x.id === id);
+  if (idx >= 0) rows[idx] = row; else rows.push(row);
+  window.currentRowId = id;
+  saveExportRows(rows);
+}
+
+function addCandidate() {
+  if (!window.lastResult) return;
+  commitCurrent();
+
+  if (activeModule==='pre') {
+    document.getElementById("p1-city").value=0.90;
+    document.getElementById("p1-exp").value=5;
+    document.getElementById("p1-training").value=50;
+    document.getElementById("p1-lastjob").value=1;
+    setToggle("p1-relexp","yes",document.getElementById("p1-relexp").previousElementSibling.children[0]);
+    document.getElementById("p1-test").value="";
+  } else {
+    document.getElementById("p2-age").value=32;
+    document.getElementById("p2-numcompanies").value=3;
+    document.getElementById("p2-distance").value=10;
+    document.getElementById("p2-income").value=getCountryData().avg;
+    document.getElementById("p2-jobsat").value=2;
+    document.getElementById("p2-envsat").value=2;
+    document.getElementById("p2-wlb").value=2;
+    document.getElementById("p2-promotion").value=2;
+    document.getElementById("p2-manager").value=3;
+    setToggle("p2-marital","yes",document.getElementById("p2-marital").previousElementSibling.children[0]);
+    setToggle("p2-overtime","no",document.getElementById("p2-overtime").previousElementSibling.children[1]);
+    document.getElementById("p2-test").value="";
+  }
+
+  document.getElementById("results").style.display = "none";
+  document.getElementById("add-btn").disabled = true;
+  window.lastResult = null;
+  window.currentRowId = null;
+  updateAddCounter();
+
+  document.getElementById("intro-candidate").value = "";
+  const overlay = document.getElementById("intro-overlay");
+  overlay.style.display = "flex";
+  overlay.style.animation = "fadeIn 0.4s ease";
+  setTimeout(() => document.getElementById("intro-candidate").focus(), 100);
+}
+
+document.addEventListener("DOMContentLoaded", updateAddCounter);
+
+function exportToExcel() {
+  if (window.lastResult) commitCurrent();
+  const rows = loadExportRows();
+  if (!rows.length) return;
+  updateAddCounter();
+
+  const d = new Date();
+  const pad = n => String(n).padStart(2, "0");
+
+  const header = [
+    "№", "Дата", "Модуль", "Оцінюваний", "Менеджер", "Країна",
+    "Ймовірність звільнення", "Рівень ризику", "Результат тесту", "Ключові параметри"
+  ];
+
+  const aoa = [
+    ["ЗВІТ ОЦІНЮВАННЯ РИЗИКУ ЗВІЛЬНЕННЯ"],
+    header,
+    ...rows.map((x, i) => [
+      i + 1, x.date, x.module, x.candidate, x.manager, x.country,
+      x.p, x.risk, x.test, x.details
+    ])
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const lastCol = header.length - 1;
+
+  // ── РАЗМЕТКА НОВОЙ ПАЛИТРЫ ─────────────────────────────────────────
+  const thin = { style: "thin", color: { rgb: "D5C7BA" } };
+  const border = { top: thin, bottom: thin, left: thin, right: thin };
+
+  const riskFill = {
+    "Низький": "8AA187",   // #8AA187 (Шавлієвий)
+    "Середній": "ACB580",  // #ACB580 (Оливковий)
+    "Високий": "F7BC9E"    // #F7BC9E (Персиковий)
+  };
+
+  // 1. Головний заголовок звіту (A1) — #579594
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } }];
+  ws["A1"].s = {
+    font: { bold: true, sz: 14, color: { rgb: "FFFFFF" } },
+    fill: { fgColor: { rgb: "579594" } },
+    alignment: { horizontal: "center", vertical: "center" }
+  };
+
+  // 2. Шапка таблиці (Row 2) — #579594
+  for (let c = 0; c <= lastCol; c++) {
+    const a = XLSX.utils.encode_cell({ r: 1, c });
+    ws[a].s = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "579594" } },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border
+    };
+  }
+
+  // 3. Рядки даних із підсвічуванням факторів
+  rows.forEach((x, i) => {
+    const r0 = i + 2;
+    const isPre = x.module.includes("Pre-Hire");
+    const rowBg = i % 2 === 0 ? "FDFBF9" : "FFFFFF";
+
+    for (let c = 0; c <= lastCol; c++) {
+      const a = XLSX.utils.encode_cell({ r: r0, c });
+      ws[a].s = {
+        alignment: { horizontal: c === 3 || c === 4 || c === 9 ? "left" : "center", vertical: "center" },
+        fill: { fgColor: { rgb: rowBg } },
+        border
+      };
+    }
+
+    // Колонка "Модуль": #F7BC9E для Pre-Hire / #579594 для Post-Hire
+    const modCell = XLSX.utils.encode_cell({ r: r0, c: 2 });
+    ws[modCell].s = {
+      font: { bold: true, color: { rgb: isPre ? "2B3A39" : "FFFFFF" } },
+      fill: { fgColor: { rgb: isPre ? "F7BC9E" : "579594" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border
+    };
+
+    // Колонки "Ймовірність" та "Рівень ризику"
+    const fill = { fgColor: { rgb: riskFill[x.risk] || rowBg } };
+    const pc = XLSX.utils.encode_cell({ r: r0, c: 6 });
+    const rc = XLSX.utils.encode_cell({ r: r0, c: 7 });
+
+    const textColor = (x.risk === "Високий" || x.risk === "Середній") ? "2B3A39" : "FFFFFF";
+
+    ws[pc].z = "0%";
+    ws[pc].s = {
+      font: { bold: true, sz: 12, color: { rgb: textColor } },
+      fill,
+      alignment: { horizontal: "center", vertical: "center" },
+      border
+    };
+    ws[rc].s = {
+      font: { bold: true, color: { rgb: textColor } },
+      fill,
+      alignment: { horizontal: "center", vertical: "center" },
+      border
+    };
+  });
+
+  ws["!cols"] = [
+    {wch:5},{wch:12},{wch:24},{wch:24},{wch:24},{wch:16},{wch:18},{wch:14},{wch:18},{wch:50}
+  ];
+  ws["!rows"] = [{ hpt: 28 }, { hpt: 36 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Оцінювання");
+
+  let fileName;
+  if (rows.length === 1) {
+    const safeName = rows[0].candidate.replace(/\s+/g,"_").replace(/[^a-zA-ZА-ЯҐЄІЇа-яґєії_\-]/g,"");
+    fileName = `${safeName}_${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}.xlsx`;
+  } else {
+    fileName = `оцінювання_${pad(d.getDate())}-${pad(d.getMonth()+1)}-${String(d.getFullYear()).slice(-2)}.xlsx`;
+  }
+  XLSX.writeFile(wb, fileName);
+}
+
+</script>
+</body>
+</html>
