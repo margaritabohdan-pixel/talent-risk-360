@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HR Risk Predictor — Модель плинності кадрів</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <!-- SheetJS — для експорту в Excel -->
@@ -190,6 +191,38 @@
   ::-webkit-scrollbar { width:6px; }
   ::-webkit-scrollbar-track { background:var(--bg); }
   ::-webkit-scrollbar-thumb { background:var(--border-dark); }
+  /* --- Мобільний адаптив (Mobile Responsive) --- */
+  @media (max-width: 768px) {
+    html, body {
+      overflow-x: hidden !important;
+      width: 100% !important;
+    }
+
+    .modal-content, [class*="modal"] {
+      width: 90% !important;
+      max-width: 100% !important;
+      margin: 10px auto !important;
+      padding: 16px !important;
+      box-sizing: border-box !important;
+    }
+
+    div[style*="display: flex"], 
+    div[style*="display: grid"] {
+      flex-wrap: wrap !important;
+      grid-template-columns: 1fr !important;
+    }
+
+    input, select, button {
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    .button, button {
+      width: 100% !important;
+      margin-bottom: 8px !important;
+    }
+  }
+
 </style>
 </head>
 <body>
